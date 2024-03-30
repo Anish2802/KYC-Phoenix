@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #chat-container {
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        #user-input {
+            width: calc(100% - 80px);
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        #send-btn {
+            width: 80px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .verify-kyc-btn {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .verify-kyc-btn button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .verify-kyc-btn button:hover {
+            background-color: #45a049;
+        }
+
+        #verification-form {
+            display: none; /* Initially hide the form */
+        }
+
+        #verification-form input {
+            margin-bottom: 10px;
+            width: calc(100% - 20px);
+            padding: 5px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        #verification-form button {
+            width: calc(100% - 20px);
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #verification-form button:hover {
+            background-color: #45a049;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="chat-container"></div>
+    <div class="verify-kyc-btn" style="display: none;"></div>
+    <textarea id="user-input" placeholder="Type here..."></textarea>
+    <button id="send-btn">Send</button>
+    <div id="verification-form" style="display: none;">
+        <input type="text" id="name" placeholder="Name">
+        <input type="text" id="dob" placeholder="Date of birth (dd/mm/yy)">
+        <input type="text" id="pan" placeholder="PAN Card Number">
+        <input type="text" id="salary" placeholder="Enter your salary">
+        <input type="text" id="address" placeholder="Enter your address">
+        <button id="submit-details">Submit</button>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#send-btn').click(function() {
+                var user_input = $('#user-input').val();
+                $('#chat-container').append('<p>User: ' + user_input + '</p>'); // Display user's message
+                $('#user-input').val('');
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{% url "chatbot_view" %}',
+                    data: {
+                        'user_input': user_input,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    },
+                    success: function(response) {
+                        if (response.response.includes('KYC_VERIFICATION_LAUNCH')) {
+                            var message = response.response.replace('KYC_VERIFICATION_LAUNCH', '');
+                            $('#chat-container').append('<p>KYC Bot: ' + message + '</p>');
+                            $('.verify-kyc-btn').html('<button id="verify-btn">Verify KYC</button>').show();
+                            $('#chat-container').append('<p>KYC Bot: After completing the step in the "Verify KYC" please return for further steps.</p>');
+                            $('#verify-btn').click(function() {
+                                $('.verify-kyc-btn').hide();
+                                $('#verification-form').show();
+                                window.open('http://127.0.0.1:5000/', '_blank'); // Open YouTube link in new tab
+                            });
+                        } else {
+                            $('#chat-container').append('<p>KYC Bot: ' + response.response + '</p>');
+                        }
+                    }
+                });
+            });
+
+            $('#submit-details').click(function() {
+                var name = $('#name').val();
+                var dob = $('#dob').val();
+                var pan = $('#pan').val();
+
+                $.ajax({
+                    type: 'POST',
+                    url: '/save_user_details/',  // Specify the URL for saving user details
+                    data: {
+                        'name': name,
+                        'dob': dob,
+                        'pan': pan,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    },
+                    success: function(response) {
+                        $('#verification-form').hide();
+                        $('#chat-container').append('<p>KYC Bot: Thank you for providing your details.</p>');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

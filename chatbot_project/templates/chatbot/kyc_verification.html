@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Capture</title>
+    <style>
+        #video-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 400px;
+            margin: 20px auto;
+        }
+
+        #video {
+            border: 2px solid #ccc;
+        }
+
+        /* Style for the Base64 code display */
+        #base64-output {
+            width: 400px; /* Adjust width as needed */
+            word-break: break-all; /* Allow long Base64 strings to wrap */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="video-container">
+        <video id="video" width="400" height="300" autoplay></video>
+    </div>
+
+    <div>
+        <button id="open-camera">Open Camera</button>
+        <button id="capture">Capture Image</button>
+    </div>
+
+    <img id="output" src="" alt="Captured Image">
+
+    <div id="base64-output"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const openCameraButton = document.getElementById('open-camera');
+        const captureButton = document.getElementById('capture');
+        const outputImage = document.getElementById('output');
+
+        // Request camera access
+        openCameraButton.addEventListener('click', () => {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(error => {
+                console.error("Error accessing camera: ", error);
+            });
+        });
+
+        // Capture image and send to backend
+        captureButton.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            // Send imageData to the backend for storage
+            const csrftoken = getCookie('csrftoken');
+
+            fetch('/save_image/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({ image_data: dataURL }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Image captured and sent to the backend');
+            })
+            .catch(error => {
+                console.error('Error capturing and sending image:', error);
+            });
+
+            outputImage.src = dataURL;
+            outputImage.style.display = 'block';
+
+            // Display the Base64 code
+            document.getElementById('base64-output').textContent = dataURL;
+        });
+
+        // Function to get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
